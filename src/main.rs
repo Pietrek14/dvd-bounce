@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-
+use rand::seq::SliceRandom;
 use bevy::prelude::*;
 
 pub const WIDTH: f32 = 720.0;
@@ -33,7 +33,21 @@ fn move_logo(mut query: Query<(&mut Transform, &LogoDirection)>, time: Res<Time>
     logo.0.translation += logo.1.0 * time.delta_seconds();
 }
 
-fn bounce(mut query: Query<(&mut Transform, &Handle<Image>, &mut LogoDirection)>, assets: Res<Assets<Image>>) {
+fn set_random_color(color_material: &mut Mut<Sprite>) {
+    let mut colors = vec![Color::BLUE, Color::RED, Color::GREEN, Color::YELLOW];
+
+    // Don't make it the same color as it was
+    if let Some(index) = colors.iter().position(|color| *color == color_material.color) {
+        colors.remove(index);
+    }
+
+    color_material.color = *colors.choose(&mut rand::thread_rng()).expect("no available colors! (the colors vector is empty)");
+}
+
+fn bounce(
+    mut query: Query<(&mut Transform, &Handle<Image>, &mut LogoDirection, &mut Sprite)>,
+    images: Res<Assets<Image>>
+) {
     let mut logo = query.iter_mut().next().expect("no logo :(");
 
     let screen_position = Vec2::new(
@@ -41,33 +55,37 @@ fn bounce(mut query: Query<(&mut Transform, &Handle<Image>, &mut LogoDirection)>
         logo.0.translation.y + HEIGHT / 2.0
     );
 
-    if let Some(sprite) = assets.get(logo.1) {
+    if let Some(sprite) = images.get(logo.1) {
         let sprite_size = Vec2::new(
             sprite.texture_descriptor.size.width as f32 * logo.0.scale.x,
             sprite.texture_descriptor.size.height as f32 * logo.0.scale.y
         );
 
-        // TODO: Change color on collision
-        // Also simplify this shit code
+        // TODO: Simplify this shit code
+        let mut sprite = logo.3;
 
         if screen_position.x - sprite_size.x / 2.0 <= 0.0 {
             logo.2.0.x *= -1.0;
             logo.0.translation.x = (sprite_size.x - WIDTH) / 2.0;
+            set_random_color(&mut sprite);
         }
         
         if screen_position.x + sprite_size.x / 2.0 >= WIDTH {
             logo.2.0.x *= -1.0;
             logo.0.translation.x = (WIDTH - sprite_size.x) / 2.0;
+            set_random_color(&mut sprite);
         }
         
         if screen_position.y - sprite_size.y / 2.0 <= 0.0 {
             logo.2.0.y *= -1.0;
             logo.0.translation.y = (sprite_size.y - HEIGHT) / 2.0;
+            set_random_color(&mut sprite);
         }
         
         if screen_position.y + sprite_size.y / 2.0 >= HEIGHT {
             logo.2.0.y *= -1.0;
             logo.0.translation.y = (HEIGHT - sprite_size.y) / 2.0;
+            set_random_color(&mut sprite);
         }
     }
 }
